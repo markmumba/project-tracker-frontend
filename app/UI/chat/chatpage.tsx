@@ -1,31 +1,47 @@
-import fetcher from "@/app/fetcher/fetcher";
 import { useChat } from "@/app/shared/hooks/useChat";
 import { useUserStore } from "@/app/shared/store";
-import { ProjectDetails } from "@/app/shared/types";
-import { useState, useEffect, useRef } from "react";
-import useSWR from "swr";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import ChatUI from "./chatui";
 
-const ChatComponent: React.FC = () => {
-  const [inputMessage, setInputMessage] = useState("");
-  const [receiverId, setReceiverId] = useState<number | null>(null);
-  const { user } = useUserStore();
-  const { messages, isConnected, sendMessage } = useChat();
-  const [lecturerName, setLecturerName] = useState<string>('');
+interface User {
+  id: number;
+  name: string;
+  // Add other user properties as needed
+}
 
-  useEffect(() => {
-    const getProjectDetails = async () => {
-      try {
-        const { data: project, error: projectError } = useSWR<ProjectDetails>("/projects", fetcher);
-        setLecturerName(project?.lecturer.name!);
-      } catch (error) {
-        console.error('Failed to fetch project details:', error);
-      }
-    };
+const ChatPage: React.FC = () => {
+  const [inputMessage, setInputMessage] = useState<string>('');
+  const { user } = useUserStore() as { user: User | null };
+  const searchParams = useSearchParams();
+  const receiverId = parseInt(searchParams.get('receiverId') || '0', 10);
 
-    getProjectDetails();
-  }, [user]);
+  // Error states with proper types
+  if (!receiverId) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center p-6 bg-red-50 rounded-lg">
+          <h2 className="text-xl text-red-600 mb-2">Invalid Chat</h2>
+          <p>No receiver specified. Please select a user to chat with.</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleSendMessage = () => {
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center p-6 bg-yellow-50 rounded-lg">
+          <h2 className="text-xl text-yellow-600 mb-2">Authentication Required</h2>
+          <p>Please log in to access the chat.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { messages, isConnected, sendMessage } = useChat(receiverId);
+
+  const handleSendMessage = (): void => {
     if (inputMessage.trim()) {
       sendMessage(inputMessage);
       setInputMessage('');
@@ -33,45 +49,15 @@ const ChatComponent: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <h2 className="text-xl font-bold mb-4">Chat with {lecturerName}</h2>
-      <div className="flex-grow overflow-y-auto p-4">
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`mb-2 ${msg.senderId === user?.id ? 'text-right' : 'text-left'
-              }`}
-          >
-            <span
-              className={`inline-block p-2 rounded-lg ${msg.senderId === user?.id ? 'bg-blue-500 text-white' : 'bg-gray-200'
-                }`}
-            >
-              {msg.message}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="p-4 border-t">
-        <div className="flex">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Type a message..."
-            className="flex-grow p-2 border rounded-l"
-          />
-          <button
-            onClick={handleSendMessage}
-            className="px-4 py-2 bg-blue-500 text-white rounded-r"
-            disabled={!isConnected}
-          >
-            Send
-          </button>
-        </div>
-      </div>
-    </div>
+    <ChatUI
+      messages={messages}
+      isConnected={isConnected}
+      inputMessage={inputMessage}
+      setInputMessage={setInputMessage}
+      handleSendMessage={handleSendMessage}
+      userId={user.id}
+    />
   );
 };
 
-export default ChatComponent;
+export default ChatPage;
