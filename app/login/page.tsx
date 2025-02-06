@@ -27,13 +27,17 @@ function Login() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Check if user is already logged in
+    const token = localStorage.getItem("token");
+  
+
     // Check if this is the user's first visit
     const hasVisited = localStorage.getItem('hasVisitedBefore');
     if (!hasVisited) {
       setShowCredentials(true);
       localStorage.setItem('hasVisitedBefore', 'true');
     }
-  }, []);
+  }, [router]);
 
   const handleDemoLogin = () => {
     setFormData({
@@ -65,19 +69,27 @@ function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validateForm()) return;
     setLoading(true);
     try {
       const requestBody = JSON.stringify(formData);
+      
       const response = await axiosInstance.post('/login', requestBody, {
-        withCredentials: true,
         headers: {
           'Content-Type': 'application/json'
         }
       });
-      window.localStorage.setItem('token', response.data.token);
+  
+      // Store token in localStorage
+      const token = response.data.token;
+      localStorage.setItem('token', token);
+  
+      // Set token in Axios for future requests
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  
       router.push('/dashboard');
     } catch (error) {
       console.log(error);
@@ -86,6 +98,7 @@ function Login() {
       setLoading(false);
     }
   };
+  
 
   useEffect(() => {
     if (successMessage) {

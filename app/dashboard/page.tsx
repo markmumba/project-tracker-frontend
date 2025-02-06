@@ -31,6 +31,10 @@ function Dashboard() {
     error: userError,
   } = useSWR<UserDetails>("/users", fetcher);
 
+  console.log(userDetails);
+
+  
+
   useEffect(() => {
     if (userDetails && (!user || JSON.stringify(user) !== JSON.stringify(userDetails))) {
       setUser(userDetails);
